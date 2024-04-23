@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  postgres:
+    build:
+      context: ./database-svc
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: warehouse_db
+    volumes:
+      - ./database-svc/init.sql:/docker-entrypoint-initdb.d/init.sql  # Mount init.sql for database initialization
+    ports:
+      - "5432:5432"  # Map PostgreSQL port
+
+  inventory-svc:
+    build:
+      context: ./inventory-svc
+    ports:
+      - "3000:3000"  # Map inventory service port
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_NAME: warehouse_db
+

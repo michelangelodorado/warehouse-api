@@ -9,15 +9,28 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: warehouse_db
     volumes:
-      - ./database-svc/init.sql:/docker-entrypoint-initdb.d/init.sql  # Mount init.sql for database initialization
+      - ./database-svc/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432"  # Map PostgreSQL port
+      - "5432:5432"
 
   inventory-svc:
     build:
       context: ./inventory-svc
     ports:
-      - "3000:3000"  # Map inventory service port
+      - "3000:3000"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_NAME: warehouse_db
+
+  pricing-svc:
+    build:
+      context: ./pricing-svc
+    ports:
+      - "3001:3001"
     depends_on:
       - postgres
     environment:

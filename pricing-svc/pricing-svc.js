@@ -1,69 +1,70 @@
 const express = require('express');
+const { Pool } = require('pg');
 const bodyParser = require('body-parser');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 
 const app = express();
 app.use(bodyParser.json());
 
-// Determine the database file path based on the environment or use a default path
-const dbFilePath = process.env.DB_FILE_PATH || path.join(__dirname, 'shared/database/inventory.db');
+const port = 3001;
 
-// Connect to the SQLite database
-const db = new sqlite3.Database(dbFilePath, sqlite3.OPEN_READWRITE, err => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to the SQLite database');
+// PostgreSQL database configuration
+const pool = new Pool({
+  user: process.env.DB_USER || 'admin',
+  host: process.env.DB_HOST || 'postgres',
+  database: process.env.DB_NAME || 'warehouse_db',
+  password: process.env.DB_PASSWORD || 'password',
+  port: process.env.DB_PORT || 5432,
+});
+
+// Endpoint to get the price of an item by ID
+app.get('/api/warehouse/pricing/:id', async (req, res) => {
+  const itemId = req.params.id;
+
+  try {
+    const { rows } = await pool.query('SELECT price FROM items WHERE id = $1', [itemId]);
+    if (rows.length > 0) {
+      res.json({ price: rows[0].price });
+    } else {
+      res.status(404).json({ error: 'Item not found' });
+    }
+  } catch (err) {
+    console.error('Error querying database:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Endpoint to get pricing information for an item by ID
-app.get('/api/warehouse/pricing/:id', (req, res) => {
-  const itemId = parseInt(req.params.id);
-  const sql = 'SELECT * FROM items WHERE id = ?';
+// Endpoint to list all item pricing
+app.get('/api/warehouse/pricing', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name, price FROM items');
+    res.json(rows);
+  } catch (err) {
+    console.error('Error querying database:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-  db.get(sql, [itemId], (err, row) => {
-    if (err) {
-      console.error('Error querying database:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
-    } else if (!row) {
+app.put('/api/warehouse/pricing/:id', async (req, res) => {
+  try {
+    const itemId = req.params.id;
+    const { price } = req.body;
+
+    const result = await pool.query('UPDATE items SET price = $1 WHERE id = $2 RETURNING id, name, price', [price, itemId]);
+    if (result.rowCount === 0) {
       res.status(404).json({ message: 'Item not found' });
     } else {
-      // Return pricing information (assuming price is part of the item)
-      res.json({ itemId: row.id, itemName: row.name, itemPrice: row.price });
+      const updatedItem = result.rows[0];
+      res.json({ message: 'Price updated successfully', updatedItem });
     }
-  });
+  } catch (err) {
+    console.error('Error updating price in database:', err.message);
+    res.status(400).json({ error: err.message }); // Return a 400 Bad Request for validation errors
+  }
 });
 
-// Endpoint to update the price of an item by ID
-app.put('/api/warehouse/pricing/update/:id', (req, res) => {
-  const itemId = parseInt(req.params.id);
-  const updatedPrice = req.body.price;
-
-  const sql = 'UPDATE items SET price = ? WHERE id = ?';
-  const params = [updatedPrice, itemId];
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      console.error('Error updating price in database:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
-    } else if (this.changes === 0) {
-      res.status(404).json({ message: 'Item not found or price unchanged' });
-    } else {
-      res.json({ message: 'Price updated for item', itemId, updatedPrice });
-    }
-  });
-});
 
 // Start the server
-const PORT = 3001; // Adjust the port as needed
-app.listen(PORT, () => {
-  console.log(`Pricing service is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Pricing service is running on port ${port}`);
 });
 
-// Close the database connection when the application stops running
-process.on('exit', () => {
-  db.close();
-  console.log('Database connection closed');
-});
