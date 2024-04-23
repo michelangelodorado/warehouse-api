@@ -6,7 +6,7 @@ const app = express();
 app.use(bodyParser.json());
 
 // Connect to the SQLite database
-const db = new sqlite3.Database('shared/database/database.db', sqlite3.OPEN_READWRITE, err => {
+const db = new sqlite3.Database('./shared/database/inventory.db', sqlite3.OPEN_READWRITE, err => {
   if (err) {
     console.error('Error opening database:', err.message);
   } else {
