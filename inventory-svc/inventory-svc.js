@@ -1,98 +1,88 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 
 const app = express();
 app.use(bodyParser.json());
 
-// Determine the database file path based on the environment or use a default path
-const dbFilePath = process.env.DB_FILE_PATH || path.join(__dirname, 'shared/database/inventory.db');
+// PostgreSQL database configuration
+const pool = new Pool({
+  user: process.env.DB_USER || 'admin',
+  host: process.env.DB_HOST || 'postgres',
+  database: process.env.DB_NAME || 'warehouse_db',
+  password: process.env.DB_PASSWORD || 'password',
+  port: process.env.DB_PORT || 5432,
+});
 
-// Connect to the SQLite database
-const db = new sqlite3.Database(dbFilePath, sqlite3.OPEN_READWRITE, err => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to the SQLite database');
-  }
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
 });
 
 // Endpoint to get all items in the inventory from the database
-app.get('/api/warehouse/inventory', (req, res) => {
-  const sql = 'SELECT * FROM items';
-
-  db.all(sql, [], (err, rows) => {
-    if (err) {
-      console.error('Error querying database:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
-    } else {
-      res.json(rows);
-    }
-  });
+app.get('/api/warehouse/inventory', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM items');
+    res.json(rows);
+  } catch (err) {
+    console.error('Error querying database:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Endpoint to add an item to the inventory in the database
-app.post('/api/warehouse/inventory/add', (req, res) => {
+app.post('/api/warehouse/inventory/add', async (req, res) => {
   const newItem = req.body;
+  const { name, price, quantity } = newItem;
 
-  const sql = 'INSERT INTO items (name, price, quantity) VALUES (?, ?, ?)';
-  const params = [newItem.name, newItem.price, newItem.quantity];
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      console.error('Error inserting into database:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
-    } else {
-      res.status(201).json({ message: 'Item added to inventory', newItem });
-    }
-  });
+  try {
+    await pool.query('INSERT INTO items (name, price, quantity) VALUES ($1, $2, $3)', [name, price, quantity]);
+    res.status(201).json({ message: 'Item added to inventory', newItem });
+  } catch (err) {
+    console.error('Error inserting into database:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Endpoint to delete an item from the inventory in the database by ID
-app.delete('/api/warehouse/inventory/delete/:id', (req, res) => {
+app.delete('/api/warehouse/inventory/delete/:id', async (req, res) => {
   const idToDelete = parseInt(req.params.id);
-  const sql = 'DELETE FROM items WHERE id = ?';
 
-  db.run(sql, idToDelete, function(err) {
-    if (err) {
-      console.error('Error deleting from database:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
-    } else if (this.changes === 0) {
+  try {
+    const result = await pool.query('DELETE FROM items WHERE id = $1', [idToDelete]);
+    if (result.rowCount === 0) {
       res.status(404).json({ message: 'Item not found in inventory' });
     } else {
       res.json({ message: 'Item deleted from inventory', deletedItemId: idToDelete });
     }
-  });
+  } catch (err) {
+    console.error('Error deleting from database:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Endpoint to update an item in the inventory in the database by ID
-app.put('/api/warehouse/inventory/update/:id', (req, res) => {
+app.put('/api/warehouse/inventory/update/:id', async (req, res) => {
   const idToUpdate = parseInt(req.params.id);
   const updatedItem = req.body;
+  const { name, price, quantity } = updatedItem;
 
-  const sql = 'UPDATE items SET name = ?, price = ?, quantity = ? WHERE id = ?';
-  const params = [updatedItem.name, updatedItem.price, updatedItem.quantity, idToUpdate];
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      console.error('Error updating database:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
-    } else if (this.changes === 0) {
+  try {
+    const result = await pool.query('UPDATE items SET name = $1, price = $2, quantity = $3 WHERE id = $4', [name, price, quantity, idToUpdate]);
+    if (result.rowCount === 0) {
       res.status(404).json({ message: 'Item not found in inventory' });
     } else {
       res.json({ message: 'Item updated in inventory', updatedItem });
     }
-  });
+  } catch (err) {
+    console.error('Error updating database:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Start the server
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// Close the database connection when the application stops running
-process.on('exit', () => {
-  db.close();
-  console.log('Database connection closed');
-});
