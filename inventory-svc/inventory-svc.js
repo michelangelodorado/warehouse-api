@@ -5,8 +5,11 @@ const sqlite3 = require('sqlite3').verbose();
 const app = express();
 app.use(bodyParser.json());
 
+// Determine the database file path based on the environment or use a default path
+const dbFilePath = process.env.DB_FILE_PATH || path.join(__dirname, 'shared/database/inventory.db');
+
 // Connect to the SQLite database
-const db = new sqlite3.Database('./shared/database/inventory.db', sqlite3.OPEN_READWRITE, err => {
+const db = new sqlite3.Database(dbFilePath, sqlite3.OPEN_READWRITE, err => {
   if (err) {
     console.error('Error opening database:', err.message);
   } else {
