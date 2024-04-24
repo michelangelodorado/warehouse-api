@@ -5,23 +5,14 @@ project-root/
 ├── inventory-svc/
 │   ├── Dockerfile
 │   ├── package.json
-│   ├── src/
-│   │   └── ...
-│   └── tests/
-│       └── ...
+│   └── inventory-svc.js
 ├── pricing-svc/
 │   ├── Dockerfile
 │   ├── package.json
-│   ├── src/
-│   │   └── ...
-│   └── tests/
-│       └── ...
-├── shared/
-│   ├── database/
-│   │   └── inventory.db
-│   └── utils/
-│       └── ...
+│   └── pricing-svc.js
+├── database-svc/
+│   ├── Dockerfile
+│   └── init.sql
 ├── docker-compose.yml
-├── README.md
-└── .gitignore
+└── README.md
 ```
