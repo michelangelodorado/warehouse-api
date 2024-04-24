@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   postgres:
-    image: michelangelodorado/warehouse-database-api:latest  # Use your Docker Hub username and image name
+    build:
+      context: ./database-svc
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
@@ -13,7 +14,8 @@ services:
       - "5432:5432"
 
   inventory-svc:
-    image: michelangelodorado/warehouse-inventory-api:latest  # Replace with your Docker Hub username and image name
+    build:
+      context: ./inventory-svc
     ports:
       - "3000:3000"
     depends_on:
@@ -25,7 +27,8 @@ services:
       DB_NAME: warehouse_db
 
   pricing-svc:
-    image: michelangelodorado/warehouse-pricing-api:latest  # Replace with your Docker Hub username and image name
+    build:
+      context: ./pricing-svc
     ports:
       - "3001:3001"
     depends_on:
