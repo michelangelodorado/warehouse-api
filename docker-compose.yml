@@ -1,5 +1,5 @@
 version: '3.8'
-
+  
 services:
   postgres:
     image: michelangelodorado/warehouse-database-api:latest  # Use your Docker Hub username and image name
@@ -11,6 +11,7 @@ services:
       - ./database-svc/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
+    restart: always
 
   inventory-svc:
     image: michelangelodorado/warehouse-inventory-api:latest  # Replace with your Docker Hub username and image name
@@ -23,6 +24,7 @@ services:
       DB_USER: admin
       DB_PASSWORD: password
       DB_NAME: warehouse_db
+    restart: always
 
   pricing-svc:
     image: michelangelodorado/warehouse-pricing-api:latest  # Replace with your Docker Hub username and image name
@@ -35,4 +37,4 @@ services:
       DB_USER: admin
       DB_PASSWORD: password
       DB_NAME: warehouse_db
-
+    restart: always
